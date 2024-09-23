@@ -39,7 +39,7 @@ upstream_tag := "v$(upstream_version).$(upstream_patchlevel)"
 # AUTOBUILD can also be used by anyone wanting to build a custom kernel
 # image, or rebuild the entire set of Ubuntu packages using custom patches
 # or configs.
-AUTOBUILD=
+AUTOBUILD=true
 
 ifneq ($(AUTOBUILD),)
 skipabi		= true
@@ -79,6 +79,9 @@ ifeq ($(full_build),false)
 skipdbg=true
 endif
 
+# Find localversion-rt, if there is localversion-rt under root directory
+localversion-rt := $(shell if [ -f localversion-rt ]; then cat localversion-rt; fi)
+abi_suffix := $(abi_suffix)$(localversion-rt)
 abinum		:= $(shell echo $(revision) | sed -r -e 's/([^\+~]*)\.[^\.]+(~.*)?(\+.*)?$$/\1/')$(abi_suffix)
 prev_abinum	:= $(shell echo $(prev_revision) | sed -r -e 's/([^\+~]*)\.[^\.]+(~.*)?(\+.*)?$$/\1/')$(abi_suffix)
 abi_release	:= $(release)-$(abinum)

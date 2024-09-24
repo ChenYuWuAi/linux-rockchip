@@ -36,7 +36,7 @@ $(stampdir)/stamp-prepare-tree-%: debian/scripts/fix-filenames
 		sed -ie 's/.*CONFIG_UBUNTU_ODM_DRIVERS.*/# CONFIG_UBUNTU_ODM_DRIVERS is not set/' \
 		    $(builddir)/build-$*/.config
 	find $(builddir)/build-$* -name "*.ko" | xargs rm -f
-	$(build_cd) $(kmake) $(build_O) -j1 syncconfig prepare scripts
+	$(build_cd) $(kmake) $(build_O) CROSS_COMPILE=$(CROSS_COMPILE) -j1 syncconfig prepare scripts
 	touch $@
 
 # Used by developers as a shortcut to prepare a tree for compilation.
@@ -322,7 +322,9 @@ endif
 	install -d -m755 $(hdrdir)
 	cp $(builddir)/build-$*/.config $(hdrdir)
 	chmod 644 $(hdrdir)/.config
-	$(kmake) O=$(hdrdir) -j1 syncconfig prepare scripts
+	# Set HOSCCC to CROSS_COMPILE temporarily
+	HOSTCC=$(CROSS_COMPILE)gcc $(kmake) O=$(hdrdir) -j1 syncconfig prepare scripts
+	# $(kmake) O=$(hdrdir) -j1 syncconfig prepare scripts
 	# We'll symlink this stuff
 	rm -f $(hdrdir)/Makefile
 	rm -rf $(hdrdir)/include2 $(hdrdir)/source

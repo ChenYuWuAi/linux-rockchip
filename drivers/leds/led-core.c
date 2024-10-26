@@ -232,6 +232,9 @@ EXPORT_SYMBOL_GPL(led_blink_set_oneshot);
 void led_stop_software_blink(struct led_classdev *led_cdev)
 {
 	del_timer_sync(&led_cdev->blink_timer);
+	dev_dbg(led_cdev->dev, "blink_delay_on: %lu, blink_delay_off: %lu\n",
+		led_cdev->blink_delay_on, led_cdev->blink_delay_off);
+	dev_dbg(led_cdev->dev, "Stopping software blink, setting blink_delay_on and blink_delay_off to 0\n");
 	led_cdev->blink_delay_on = 0;
 	led_cdev->blink_delay_off = 0;
 	clear_bit(LED_BLINK_SW, &led_cdev->work_flags);
@@ -325,14 +328,17 @@ u32 *led_get_default_pattern(struct led_classdev *led_cdev, unsigned int *size)
 	int count;
 
 	count = fwnode_property_count_u32(fwnode, "led-pattern");
+	dev_dbg("led-pattern item count: %d", count);
 	if (count < 0)
 		return NULL;
 
 	pattern = kcalloc(count, sizeof(*pattern), GFP_KERNEL);
-	if (!pattern)
-		return NULL;
+	if (!pattern){
+		dev_dbg("Failed to allocate memory for led-pattern");
+		return NULL;}
 
 	if (fwnode_property_read_u32_array(fwnode, "led-pattern", pattern, count)) {
+		dev_dbg("Failed to read led-pattern property");
 		kfree(pattern);
 		return NULL;
 	}

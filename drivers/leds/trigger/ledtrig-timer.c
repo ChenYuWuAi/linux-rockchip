@@ -81,9 +81,13 @@ static void pattern_init(struct led_classdev *led_cdev)
 	unsigned int size = 0;
 
 	pattern = led_get_default_pattern(led_cdev, &size);
+	printk("pattern_init size: %d\n", size);
 	if (!pattern)
-		return;
-
+		{
+			printk("pattern_init pattern is NULL\n");
+			return;
+		}
+		
 	if (size != 2) {
 		dev_warn(led_cdev->dev,
 			 "Expected 2 but got %u values for delays pattern\n",

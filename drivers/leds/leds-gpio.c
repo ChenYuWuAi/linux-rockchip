@@ -131,9 +131,18 @@ static int create_gpio_led(const struct gpio_led *template,
 
 	if (template->name) {
 		led_dat->cdev.name = template->name;
-		ret = devm_led_classdev_register(parent, &led_dat->cdev);
+		dev_dbg(parent, "Registered led device: %s, not giving out fwnode\n",
+			led_dat->cdev.name);
+		// Manually give out fwnode
+		init_data.fwnode = fwnode;
+		dev_dbg(parent, "Registered led device: %s, fwnode %p\n",
+			led_dat->cdev.name, fwnode);
+		ret = devm_led_classdev_register_ext(parent, &led_dat->cdev,
+						     &init_data);
 	} else {
 		init_data.fwnode = fwnode;
+		dev_dbg(parent, "Registered led device: %s, fwnode %p\n",
+			led_dat->cdev.name, fwnode);
 		ret = devm_led_classdev_register_ext(parent, &led_dat->cdev,
 						     &init_data);
 	}

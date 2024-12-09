@@ -15,6 +15,7 @@
 #include <linux/completion.h>
 #include <linux/module.h>
 #include "aic_bsp_export.h"
+#include <linux/device.h>
 
 #define RWNX_80211_CMD_TIMEOUT_MS    3000//500//300
 
@@ -49,14 +50,34 @@ extern int aicwf_dbg_level_bsp;
 #define AICWFDBG(level, args, arg...)	\
 do {	\
 	if (aicwf_dbg_level_bsp & level) {	\
-		printk(AICWF_LOG#level")\t" args, ##arg); \
+		switch (level) {	\
+		case LOGERROR:	\
+			printk(KERN_ERR AICWF_LOG#level")\t" args, ##arg); \
+			break;	\
+		case LOGINFO:	\
+			printk(KERN_INFO AICWF_LOG#level")\t" args, ##arg);	\
+			break;	\
+		case LOGTRACE:	\
+			printk(KERN_DEBUG AICWF_LOG#level")\t" args, ##arg);	\
+			break;	\
+		case LOGDEBUG:	\
+			printk(KERN_DEBUG AICWF_LOG#level")\t" args, ##arg);	\
+			break;	\
+		case LOGDATA:	\
+			printk(KERN_DEBUG AICWF_LOG#level")\t" args, ##arg);	\
+			break;	\
+		default:	\
+			printk(AICWF_LOG"(%s)\t" ,#level);	\
+			printk(args, ##arg);	\
+			break;	\
+		}	\
 	}	\
 } while (0)
 
 #define RWNX_DBG(fmt, ...)	\
 do {	\
 	if (aicwf_dbg_level_bsp & LOGTRACE) {	\
-		printk(AICWF_LOG"LOGTRACE)\t"fmt , ##__VA_ARGS__); 	\
+		printk(KERN_DEBUG AICWF_LOG"LOGTRACE)\t"fmt , ##__VA_ARGS__); 	\
 	}	\
 } while (0)
 

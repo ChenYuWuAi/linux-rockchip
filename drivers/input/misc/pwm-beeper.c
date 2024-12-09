@@ -14,6 +14,10 @@
 #include <linux/pwm.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
+#include <linux/delay.h>
+
+struct task_struct *music_thread;
 
 struct pwm_beeper {
 	struct input_dev *input;
@@ -119,6 +123,24 @@ static void pwm_beeper_close(struct input_dev *input)
 	pwm_beeper_stop(beeper);
 }
 
+int play_music_thread(void *data) {
+    struct pwm_beeper *beeper = data;
+    while (!kthread_should_stop()) {
+        // 在这里编写音乐播放逻辑
+        // 开机音乐
+        pwm_beeper_event(beeper->input, EV_SND, SND_TONE, 523);
+        msleep(250);
+        pwm_beeper_event(beeper->input, EV_SND, SND_TONE, 587);
+        msleep(250);
+        pwm_beeper_event(beeper->input, EV_SND, SND_TONE, 784);
+        msleep(550);
+        pwm_beeper_event(beeper->input, EV_SND, SND_TONE, 0);
+        // 停止thread
+        kthread_stop(music_thread);
+    }
+    return 0;
+}
+
 static int pwm_beeper_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -200,7 +222,18 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, beeper);
 
-	return 0;
+    dev_dbg(dev, "pwm-beeper probe successful\n");
+
+    // 创建并启动音乐播放线程
+    music_thread = kthread_run(play_music_thread, beeper, "music_thread");
+    if (IS_ERR(music_thread)) {
+        pr_err("Failed to create music playback thread\n");
+        return PTR_ERR(music_thread);
+    }
+
+    pr_info("Buzzer driver initialized and music thread started\n");
+
+    return 0;
 }
 
 static int __maybe_unused pwm_beeper_suspend(struct device *dev)

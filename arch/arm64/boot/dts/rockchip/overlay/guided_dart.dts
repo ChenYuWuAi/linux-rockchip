@@ -1,0 +1,289 @@
+// 制导飞镖主板扩展板专属的设备树插件
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/display/media-bus-format.h>
+
+/ {
+	metadata {
+		title = "Guided Dart Device Tree Overlay";
+		compatible = "radxa,zero3";
+		category = "misc";
+		exclusive = "GPIO3_B1";
+		description = "Enable Buzzer, BQ40Z50 fuel gauge and flying light on Guided Dart board.";
+	};
+	
+	// PWM Buzzer on PWM8-M0
+	fragment@10 {
+		target-path = "/";
+		__overlay__ {
+			beeper: pwm-beeper {
+				compatible = "pwm-beeper";
+				pwms = <&pwm8 0 5000 0>;
+				status = "okay";
+			};
+		};
+	};
+
+	// NO Eternet and GMAC1
+	fragment@11 {
+		target = <&mdio1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@12 {
+		target = <&gmac1>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@13 {
+		target-path = "/";
+
+		__overlay__ {
+			clk_cam_24m: external-camera-clock-24m {
+				status = "okay";
+				compatible = "fixed-clock";
+				clock-frequency = <24000000>;
+				clock-output-names = "clk_cam_24m";
+				#clock-cells = <0>;
+			};
+
+			camera_pwdn_gpio: camera-pwdn-gpio {
+				status = "okay";
+				compatible = "regulator-fixed";
+				regulator-name = "camera_pwdn_gpio";
+				regulator-always-on;
+				regulator-boot-on;
+				enable-active-high;
+				gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+			};
+		};
+	};
+
+	fragment@14 {
+		target = <&i2c2>;
+
+		__overlay__ {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c2m1_xfer>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			camera_imx219: camera-imx219@10 {
+				status = "okay";
+				compatible = "sony,imx219";
+				reg = <0x10>;
+				clocks = <&clk_cam_24m>;
+				clock-names = "xvclk";
+				rockchip,camera-module-index = <0>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "rpi-camera-v2";
+				rockchip,camera-module-lens-name = "default";
+
+				port {
+					ucam_out0: endpoint {
+						remote-endpoint = <&mipi_in_ucam0>;
+						data-lanes = <1 2>;
+					};
+				};
+
+				/* support mode config start */
+				support-mode-config {
+					status = "okay";
+					bus-format = <MEDIA_BUS_FMT_UYVY8_2X8>;
+					sensor-width = <800>;
+					sensor-height = <600>;
+					max-fps-numerator = <10000>;
+					max-fps-denominator = <1200000>;
+					bpp = <16>;
+					link-freq-idx = <20>;
+				};
+			};
+		};
+	};
+
+	fragment@15 {
+		target = <&csi2_dphy_hw>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@16 {
+		target = <&csi2_dphy0>;
+
+		__overlay__ {
+			status = "okay";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					mipi_in_ucam0: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&ucam_out0>;
+						data-lanes = <1 2>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					dphy0_out: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&isp0_in>;
+					};
+				};
+			};
+		};
+	};
+
+	fragment@17 {
+		target = <&rkisp_vir0>;
+
+		__overlay__ {
+			status = "okay";
+
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				isp0_in: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&dphy0_out>;
+				};
+			};
+		};
+	};
+
+	fragment@18 {
+		target = <&rkisp>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@19 {
+		target = <&rkisp_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@20 {
+		target = <&rkcif_mmu>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	fragment@21 {
+		target = <&rkcif>;
+
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+};
+
+// 在gpio_leds节点下追加两个LED节点
+&gpio_leds {
+	green_flylight: green-flylight {
+		linux,default-trigger = "none";
+		default-state = "off";
+		// GPIO3_B2
+		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&green_flylight_pin>;
+	};
+	
+	red_flylight: red-flylight {
+		linux,default-trigger = "none";
+		default-state = "off";
+		// GPIO3_C3
+		gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&red_flylight_pin>;
+	};
+};
+
+&pinctrl {
+	flylight{
+		green_flylight_pin: green-flylight-pin {
+			rockchip,pins = <3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+		
+		red_flylight_pin: red-flylight-pin {
+			rockchip,pins = <3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&uart3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3m0_xfer>;
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m0_xfer>;
+	clock-frequency = <100000>;
+};
+
+&pwm9 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm9m0_pins>;
+};
+
+// Enable PWM8-M0
+&pwm8 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm8m0_pins>;
+};
+
+&pwm13 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm13m1_pins>;
+};
+
+&pwm14 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm14m0_pins>;
+};
+
+&pwm15 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm15m1_pins>;
+};
+
+&pwm12 {
+	status = "okay";
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm12m1_pins>;
+};

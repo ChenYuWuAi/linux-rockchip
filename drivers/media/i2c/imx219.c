@@ -25,6 +25,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-image-sizes.h>
 #include <media/v4l2-mediabus.h>
+// dev_dbg
+#include <linux/debugfs.h>
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 
@@ -121,55 +123,137 @@ static const struct imx219_reg imx219_init_tab_3280_2464_21fps[] = {
 
 /* MCLK:24MHz  1920x1080  30fps   MIPI LANE2 */
 static const struct imx219_reg imx219_init_tab_1920_1080_30fps[] = {
-	{0x30EB, 0x05},
-	{0x30EB, 0x0C},
-	{0x300A, 0xFF},
-	{0x300B, 0xFF},
-	{0x30EB, 0x05},
-	{0x30EB, 0x09},
-	{0x0114, 0x01},
-	{0x0128, 0x00},
-	{0x012A, 0x18},
-	{0x012B, 0x00},
-	{0x0160, 0x06},
-	{0x0161, 0xE6},
-	{0x0162, 0x0D},
-	{0x0163, 0x78},
-	{0x0164, 0x02},
-	{0x0165, 0xA8},
-	{0x0166, 0x0A},
-	{0x0167, 0x27},
-	{0x0168, 0x02},
-	{0x0169, 0xB4},
-	{0x016A, 0x06},
-	{0x016B, 0xEB},
-	{0x016C, 0x07},
-	{0x016D, 0x80},
-	{0x016E, 0x04},
-	{0x016F, 0x38},
-	{0x0170, 0x01},
-	{0x0171, 0x01},
-	{0x0174, 0x00},
-	{0x0175, 0x00},
-	{0x018C, 0x0A},
-	{0x018D, 0x0A},
-	{0x0301, 0x05},
-	{0x0303, 0x01},
-	{0x0304, 0x03},
-	{0x0305, 0x03},
-	{0x0306, 0x00},
-	{0x0307, 0x39},
-	{0x0309, 0x0A},
-	{0x030B, 0x01},
-	{0x030C, 0x00},
-	{0x030D, 0x72},
-	{0x455E, 0x00},
-	{0x471E, 0x4B},
-	{0x4767, 0x0F},
-	{0x4750, 0x14},
-	{0x4540, 0x00},
-	{0x47B4, 0x14},
+	// Software reset sequence
+	{0x30EB, 0x05},  // Access enable part 1
+	{0x30EB, 0x0C},  // Access enable part 2
+	{0x300A, 0xFF},  // Access unlock part 1
+	{0x300B, 0xFF},  // Access unlock part 2
+	{0x30EB, 0x05},  // Access enable repeat
+	{0x30EB, 0x09},  // Access finalize
+
+	// Basic settings
+	{0x0114, 0x01},  // CSI-2 lane mode: 2 lanes
+	{0x0128, 0x00},  // DPHY timing settings (default)
+	{0x012A, 0x18},  // Line length (MSB) for timing adjustments
+	{0x012B, 0x00},  // Line length (LSB)
+
+	// Frame timing configuration
+	{0x0160, 0x06},  // Frame length (MSB): 1766 lines
+	{0x0161, 0xE6},  // Frame length (LSB)
+	{0x0162, 0x0D},  // Line length (MSB): 3448 pixels
+	{0x0163, 0x78},  // Line length (LSB)
+
+	// ROI (Region of Interest) settings
+	{0x0164, 0x02},  // X address start (MSB): 680
+	{0x0165, 0xA8},  // X address start (LSB)
+	{0x0166, 0x0A},  // X address end (MSB): 2599
+	{0x0167, 0x27},  // X address end (LSB)
+	{0x0168, 0x02},  // Y address start (MSB): 692
+	{0x0169, 0xB4},  // Y address start (LSB)
+	{0x016A, 0x06},  // Y address end (MSB): 1771
+	{0x016B, 0xEB},  // Y address end (LSB)
+
+	// Output image resolution
+	{0x016C, 0x07},  // X output size (MSB): 1920 pixels
+	{0x016D, 0x80},  // X output size (LSB)
+	{0x016E, 0x04},  // Y output size (MSB): 1080 pixels
+	{0x016F, 0x38},  // Y output size (LSB)
+
+	// Sub-sampling and binning
+	{0x0170, 0x01},  // X increment: 1 (no binning)
+	{0x0171, 0x01},  // Y increment: 1 (no binning)
+	{0x0174, 0x00},  // Horizontal binning mode: off
+	{0x0175, 0x00},  // Vertical binning mode: off
+
+	// Embedded data lines
+	{0x018C, 0x0A},  // CSI-2 data format: 10-bit RAW
+	{0x018D, 0x0A},  // CSI-2 data format: 10-bit RAW
+
+	// PLL and clock settings
+	{0x0301, 0x05},  // VTPXCLK divider: 5
+	{0x0303, 0x01},  // VTSYCLK divider: 1
+	{0x0304, 0x03},  // Pre PLL clock divider: 3
+	{0x0305, 0x03},  // PLL multiplier: 3
+	{0x0306, 0x00},  // PLL input frequency (MSB)
+	{0x0307, 0x39},  // PLL input frequency (LSB): 57 MHz
+	{0x0309, 0x0A},  // Output clock divider: 10
+	{0x030B, 0x01},  // System clock divider: 1
+	{0x030C, 0x00},  // PLL multiplier (MSB)
+	{0x030D, 0x72},  // PLL multiplier (LSB): 114
+
+	// Miscellaneous settings
+	{0x455E, 0x00},  // Reserved register (default)
+	{0x471E, 0x4B},  // Timing adjustment
+	{0x4767, 0x0F},  // Gain settings
+	{0x4750, 0x14},  // Black level adjustment
+	{0x4540, 0x00},  // Reserved register (default)
+	{0x47B4, 0x14},  // Miscellaneous adjustment
+
+	// End of table marker
 	{IMX219_TABLE_END, 0x00}
+};
+
+
+static const struct imx219_reg imx219_init_tab_1280_720_60fps[] = {
+	{0x30EB, 0x05},		/* Access Code for address over 0x3000 */
+	{0x30EB, 0x0C},		/* Access Code for address over 0x3000 */
+	{0x300A, 0xFF},		/* Access Code for address over 0x3000 */
+	{0x300B, 0xFF},		/* Access Code for address over 0x3000 */
+	{0x30EB, 0x05},		/* Access Code for address over 0x3000 */
+	{0x30EB, 0x09},		/* Access Code for address over 0x3000 */
+	
+	{0x0114, 0x01},     /* CSI_LANE_MODE[1:0} */
+	{0x0128, 0x00},		/* DPHY_CNTRL */
+	{0x012A, 0x18},		/* EXCK_FREQ[15:8] */
+	{0x012B, 0x00},		/* EXCK_FREQ[7:0] */
+	{0x015A, 0x03},		/* INTEG TIME[15:8] */
+	{0x015B, 0xE8},		/* INTEG TIME[7:0] */
+	
+	/* Format settings */
+	{0x0160, 0x06},		/* FRM_LENGTH[15:8] */
+	{0x0161, 0x00},		/* FRM_LENGTH[7:0] */
+	{0x0162, 0x0D},		/* LINE_LENGTH[15:8] */
+	{0x0163, 0x94},		/* LINE_LENGTH[7:0] */
+
+	{0x0164, 0x03},		/* X_ADD_STA[11:8] */
+	{0x0165, 0xE8},		/* X_ADD_STA[7:0] */
+	{0x0166, 0x08},		/* X_ADD_END[11:8] */
+	{0x0167, 0xE7},		/* X_ADD_END[7:0] */
+	{0x0168, 0x03},		/* Y_ADD_STA[11:8] */
+	{0x0169, 0x68},		/* Y_ADD_STA[7:0] */
+	{0x016A, 0x06},		/* Y_ADD_END[11:8] */
+	{0x016B, 0x37},		/* Y_ADD_END[7:0] */
+	{0x016C, 0x05},		/* X_OUTPUT_SIZE[11:8] */
+	{0x016D, 0x00},		/* X_OUTPUT_SIZE[7:0] */
+	{0x016E, 0x02},		/* Y_OUTPUT_SIZE[11:8] */
+	{0x016F, 0xD0},		/* Y_OUTPUT_SIZE[7:0] */
+	{0x0170, 0x01},		/* X_ODD_INC[2:0] */
+	{0x0171, 0x01},		/* Y_ODD_INC[2:0] */
+	{0x0174, 0x00},		/* BINNING_MODE_H */
+	{0x0175, 0x00},		/* BINNING_MODE_V */
+	{0x018C, 0x0A},		/* CSI_DATA_FORMAT[15:8] */
+	{0x018D, 0x0A},		/* CSI_DATA_FORMAT[7:0] */
+	
+	/* Clock dividers */
+	{0x0301, 0x05},		/* VTPXCK_DIV */
+	{0x0303, 0x01},		/* VTSYCK_DIV */
+	{0x0304, 0x03},		/* PREPLLCK_VT_DIV */
+	{0x0305, 0x03},		/* PREPLLCK_OP_DIV */
+	{0x0306, 0x00},		/* PLL_VT_MPY[10:8] */
+	{0x0307, 0x63},		/* PLL_VT_MPY[7:0] */
+	// {0x0309, 0x0A},		/* OPPXCK_DIV */
+	{0x030B, 0x01},		/* OPSYCK_DIV */
+	{0x030C, 0x00},		/* PLL_OP_MPY[10:8] */
+	{0x030D, 0x55},		/* PLL_OP_MPY[7:0] */
+
+	/* CIS Tuning */
+	{0x455E, 0x00},		/* CIS Tuning */
+	{0x471E, 0x4B},		/* CIS Tuning */
+	{0x4767, 0x0F},		/* CIS Tuning */
+	{0x4750, 0x14},		/* CIS Tuning */
+	{0x47B4, 0x14},		/* CIS Tuning */
+	
+	{IMX219_TABLE_END, 0x00} /* End of Table */
 };
 
 static const struct imx219_reg start[] = {
@@ -269,6 +353,17 @@ static const struct imx219_mode supported_modes[] = {
 		.hts_def = 0x0d78 - IMX219_EXP_LINES_MARGIN,
 		.vts_def = 0x09c4,
 		.reg_list = imx219_init_tab_3280_2464_21fps,
+	},
+	{
+		.width = 1280,
+		.height = 720,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 600000,
+		},
+		.hts_def = 0x0d78 - IMX219_EXP_LINES_MARGIN,
+		.vts_def = 0x0373,
+		.reg_list = imx219_init_tab_1280_720_60fps,
 	},
 };
 
@@ -683,6 +778,10 @@ static int imx219_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 
 	mode = imx219_find_best_fit(fmt);
+
+	dev_dbg(&client->dev,
+	"Best fit: %dx%d, fps: %d/%d\n", mode->width, mode->height, mode->max_fps.numerator, mode->max_fps.denominator);
+	
 	fmt->format.code = MEDIA_BUS_FMT_SRGGB10_1X10;
 	fmt->format.width = mode->width;
 	fmt->format.height = mode->height;
@@ -1063,7 +1162,7 @@ static int imx219_probe(struct i2c_client *client,
 	}
 
 	/* 1920 * 1080 by default */
-	priv->cur_mode = &supported_modes[1];
+	priv->cur_mode = &supported_modes[0];
 	priv->cfg_num = ARRAY_SIZE(supported_modes);
 
 	priv->crop_rect.width = priv->cur_mode->width;

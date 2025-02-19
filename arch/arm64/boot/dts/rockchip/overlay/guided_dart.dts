@@ -220,6 +220,14 @@
 		gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&dart_trigger_light_pin>;
 	};
+
+	// GPIO3_A1
+	dart_i2c_en: dart-i2c-en {
+		linux,default-trigger = "none";
+		default-state = "on";
+		gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&dart_i2c_local_pin>;
+	};
 };
 
 &pinctrl {
@@ -234,6 +242,10 @@
 
 		dart_trigger_light_pin: dart-trigger-light-pin {
 			rockchip,pins = <3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		dart_i2c_local_pin: dart-i2c-local-pin {
+			rockchip,pins = <3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 };
